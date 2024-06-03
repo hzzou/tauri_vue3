@@ -4,9 +4,10 @@
       <el-table
           :data="tableData"
           size="small"
+          border
           :show-header="false"
       >
-        <el-table-column props="id" width="40px" />
+        <el-table-column align="center" prop="id" width="40px" />
         <el-table-column prop="name" />
         <el-table-column width="100">
           <template #default="{row}" >
@@ -55,9 +56,10 @@
         </el-col>
         <el-col :span="8">
             <div class="slider-block">
-                <el-slider v-model="musicSeek" :min="0" :max="musicTime" :step="1" size="small" height="140px"
+                <el-slider :show-tooltip="false" v-model="musicSeek" :min="0" :max="musicTime" :step="1" size="small" height="140px"
                            @mouseup="changeMusicSeek" @touchend="changeMusicSeek">
                 </el-slider>
+                <div class="time">{{displayTime}}</div>
             </div>
         </el-col>
         <el-col :span="4">
@@ -100,11 +102,12 @@
         ArrowLeftBold, ArrowRightBold, Bell,
         Headset, MuteNotification, VideoPause, VideoPlay
     } from "@element-plus/icons-vue";
-    import {onBeforeMount, onMounted, onUnmounted, ref, watch} from "vue";
+    import {onBeforeMount, onMounted, onUnmounted, ref} from "vue";
     import {CustomPlayEvent, InterAudio, PlayMode} from "./useMusic.ts";
     import {documentDir} from "@tauri-apps/api/path";
     import {invoke} from "@tauri-apps/api";
     import {ElMessage} from "element-plus";
+
     const currAudioName = ref(""), // 当前歌曲名称
         isPlaying = ref(false), // 是否播放
         isMuted = ref(false), // 是否静音
@@ -115,6 +118,7 @@
         radio = ref(PlayMode.ListLoop),
         currAudioId = ref(0),
         docPath = await documentDir(),  // 计算机的documents目录
+        displayTime = ref(""),
         tableData = ref([]);
 
     let intervalId = ref(), // 定时器id,控制播放循环
@@ -130,26 +134,28 @@
     });
 
     onUnmounted(()=>{
-        clearInterval(intervalId.value);
-        clearInterval(seekId.value);
+        intervalId.value && clearInterval(intervalId.value);
+        seekId.value && clearInterval(seekId.value);
     })
 
     // 获取播放列表
     // 此处Mac和Windows下都基于当前的Documents
     const getList = async() => {
         tableData.value = await invoke("scan_audio_sync", {path: docPath + "Music"});
+        console.log(tableData)
     };
 
     // 播放
     const playAudio = async (row: InterAudio) => {
         isPlaying.value = true;
+        musicSeek.value = 0; // 播放时间刻度置0
+        seekId.value && clearInterval(seekId.value); // 清空播放进度定时器
         currAudioName.value = row.name;
         currAudioId.value = row.id;
         const file_path = docPath+"Music/"+row.name;
         const event: CustomPlayEvent = {action: "play", path: file_path};
         musicTime.value = await invoke("handle_event", {event: JSON.stringify(event)}).catch((error)=>ElMessage.error(error)) as number;
-        musicSeek.value = 0;
-        seekId.value = setInterval(changeMusicProcess, 1000);
+        seekId.value = setInterval(changeMusicProcess, 1000);  // 播放进度定时器
     };
 
     // 恢复播放
@@ -204,6 +210,9 @@
     const changeMusicProcess = async () => {
         if(isPlaying.value){
             musicSeek.value += 1;
+            const min = Math.floor(musicSeek.value / 60);
+            const sec = Math.floor(musicSeek.value % 60);
+            displayTime.value = (min < 10 ? '0'+min : min)+":"+(sec < 10 ? '0'+sec : sec);
         }
     };
 
@@ -240,10 +249,11 @@
 <style lang="scss">
     .music{
         width: 100%;
-        padding: 20px;
         box-sizing: border-box;
+        height: 100%;
         .top{
-
+            overflow: auto;
+            height: calc(100% - 50px);
         }
         .bottom{
             position: fixed;
@@ -251,6 +261,7 @@
             margin-top: 50px;
             width: 100%;
             height: 50px;
+            box-sizing: border-box;
             background: #fff;
             border-top: 2px solid #bbb;
             z-index: 1000;
@@ -258,6 +269,9 @@
                 white-space: nowrap;
                 text-overflow: ellipsis;
                 overflow: hidden;
+            }
+            .time{
+                margin-left: 15px;
             }
     }
     .no-shadow{

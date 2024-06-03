@@ -9,7 +9,9 @@ export default [
   ...tseslint.configs.recommended,
   ...pluginVue.configs["flat/essential"],
   {
-    languageOptions: { globals: globals.browser },
+    languageOptions: {
+        globals: globals.browser,
+    },
     rules: {
       "@typescript-eslint/no-unused-vars": "off",
       "vue/multi-word-component-names": "off",
