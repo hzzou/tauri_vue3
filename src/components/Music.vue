@@ -149,13 +149,14 @@
     const playAudio = async (row: InterAudio) => {
         isPlaying.value = true;
         musicSeek.value = 0; // 播放时间刻度置0
-        seekId.value && clearInterval(seekId.value); // 清空播放进度定时器
+        displayTime.value = "00:00";
+        seekId.value && clearInterval(seekId.value); // 先清空之前播放进度定时器
         currAudioName.value = row.name;
         currAudioId.value = row.id;
         const file_path = docPath+"Music/"+row.name;
         const event: CustomPlayEvent = {action: "play", path: file_path};
         musicTime.value = await invoke("handle_event", {event: JSON.stringify(event)}).catch((error)=>ElMessage.error(error)) as number;
-        seekId.value = setInterval(changeMusicProcess, 1000);  // 播放进度定时器
+        seekId.value = setInterval(changeMusicProcess, 1000);  // 设置播放进度定时器
     };
 
     // 恢复播放
@@ -216,11 +217,11 @@
         }
     };
 
+    // 点击播放刻度改变播放位置
     const changeMusicSeek = async () => {
         const event: CustomPlayEvent = {action: "seek", seek: musicSeek.value};
         await invoke("handle_event", {event: JSON.stringify(event)}).catch((error)=>ElMessage.error(error));
     }
-
 
     // 播放控制,判断它是否播放完，再根据播放模式进行判断和播放
     const playControl = () => {
@@ -241,7 +242,9 @@
                         console.warn(`Unsupported play mode ${radio.value}`);
                         break;
                 }
+
                 playAudio(tableData.value[index]);
+
             }
         });
     }
