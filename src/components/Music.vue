@@ -113,16 +113,17 @@
         isMuted = ref(false), // 是否静音
         volume = ref(20), // 音量
         musicSeek = ref(0), // 播放量控制
-        musicTime = ref(0), // 音乐总时间
+        musicTime = ref(0), // 音乐总时间, 用于进度条max
         originVolume = ref(0), // 静音时存储原始音量
         radio = ref(PlayMode.ListLoop),
         currAudioId = ref(0),
         docPath = await documentDir(),  // 计算机的documents目录
         displayTime = ref(""),
-        tableData = ref([]);
-
-    let intervalId = ref(), // 定时器id,控制播放循环
-    seekId = ref(); // 定时器id, 控制播放进度
+        tableData = ref([]),
+        docVisible = ref(true),
+        intervalId = ref(), // 定时器id,控制播放循环
+        seekIntervalId = ref(),
+        timeSeek = ref(0);
 
     onBeforeMount(()=>{
         getList().then();
@@ -131,32 +132,33 @@
 
     onMounted(()=>{
         intervalId.value = setInterval(playControl, 1000);
+        window.addEventListener("visibilitychange", handleVisible);
     });
 
     onUnmounted(()=>{
         intervalId.value && clearInterval(intervalId.value);
-        seekId.value && clearInterval(seekId.value);
-    })
+        seekIntervalId.value && clearInterval(seekIntervalId.value);
+        window.removeEventListener("visibilitychange", handleVisible);
+    });
 
     // 获取播放列表
     // 此处Mac和Windows下都基于当前的Documents
     const getList = async() => {
         tableData.value = await invoke("scan_audio_sync", {path: docPath + "Music"});
-        console.log(tableData)
     };
 
     // 播放
     const playAudio = async (row: InterAudio) => {
         isPlaying.value = true;
         musicSeek.value = 0; // 播放时间刻度置0
+        seekIntervalId.value && clearInterval(seekIntervalId.value);
         displayTime.value = "00:00";
-        seekId.value && clearInterval(seekId.value); // 先清空之前播放进度定时器
         currAudioName.value = row.name;
         currAudioId.value = row.id;
         const file_path = docPath+"Music/"+row.name;
         const event: CustomPlayEvent = {action: "play", path: file_path};
         musicTime.value = await invoke("handle_event", {event: JSON.stringify(event)}).catch((error)=>ElMessage.error(error)) as number;
-        seekId.value = setInterval(changeMusicProcess, 1000);  // 设置播放进度定时器
+        seekIntervalId.value = setInterval(changeMusicProcess, 1000);
     };
 
     // 恢复播放
@@ -208,11 +210,12 @@
     };
 
     // 自动改变进度条
-    const changeMusicProcess = async () => {
+    const changeMusicProcess = () => {
         if(isPlaying.value){
             musicSeek.value += 1;
-            const min = Math.floor(musicSeek.value / 60);
-            const sec = Math.floor(musicSeek.value % 60);
+            let time = musicTime.value - musicSeek.value;
+            const min = Math.floor(time / 60);
+            const sec = Math.floor(time % 60);
             displayTime.value = (min < 10 ? '0'+min : min)+":"+(sec < 10 ? '0'+sec : sec);
         }
     };
@@ -244,9 +247,26 @@
                 }
 
                 playAudio(tableData.value[index]);
-
             }
         });
+    }
+
+    // 页面显隐时，使用web Worker里面的定时器记录时间往前计数
+    const handleVisible = ()=>{
+        docVisible.value = !docVisible.value;
+        if(isPlaying.value){
+            // 隐藏到后台
+            if(!docVisible.value){
+                // 隐藏时清除定时器
+                seekIntervalId.value && clearInterval(seekIntervalId.value);
+                timeSeek.value = parseInt(Date.now()/1000);
+            }
+            else{
+                timeSeek.value = parseInt(Date.now()/1000) - timeSeek.value;
+                musicSeek.value = musicSeek.value + timeSeek.value;
+                seekIntervalId.value = setInterval(changeMusicProcess, 1000);
+            }
+        }
     }
 </script>
 <style lang="scss">

@@ -51,19 +51,19 @@ fn scan_audio_sync(path: &str) ->Vec<AudioFile> {
 
 // 播放控制
 #[tauri::command]
-fn handle_event(sender: tauri::State<Sender<AudioEvent>>, event: String) -> f64{
+fn handle_event(sender: tauri::State<Sender<AudioEvent>>, event: String) -> u64{
     let event: serde_json::Value = serde_json::from_str(&event).unwrap();
 
     println!("sender: {:?}", sender);
     println!("event: {}", event);
-    let mut source_time = 0.0;
+    let mut source_time = 0;
     if let Some(action) = event["action"].as_str(){
         match action{
             "play" => {
                 event["path"].as_str().map(|path| {
                     let file = BufReader::new(File::open(path).unwrap()); // 异步读取
                     let source = Decoder::new(file).unwrap(); //解析
-                    source_time = source.total_duration().unwrap().as_secs_f64();
+                    source_time = source.total_duration().unwrap().as_secs();
                     sender.send(AudioEvent::Play(path.to_owned()))
                 });
             },
@@ -102,6 +102,16 @@ async fn sink_empty(sink: tauri::State<'_, Arc<Mutex<Sink>>>) -> Result<bool, St
     Ok(is_empty)
 }
 
+// 获取当前播放进度
+
+#[tauri::command]
+async fn seek_time(sink: tauri::State<'_, Arc<Mutex<Sink>>>) -> Result<String, String>{
+    let sink_clone  = Arc::clone(&sink);
+    let sink_data = sink_clone.try_lock().unwrap();
+
+    Ok("".to_string())
+}
+
 #[tokio::main]
 async fn main() {
     let audio_service = AudioService::new();
@@ -117,7 +127,7 @@ async fn main() {
         })
         .invoke_handler(tauri::generate_handler![
             scan_audio_sync, handle_event,
-            sink_empty
+            sink_empty, seek_time
         ])
         .manage(audio_service.event_sender) // 管理事件
         .manage(audio_service.sink) // 管理音轨

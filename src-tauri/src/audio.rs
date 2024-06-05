@@ -6,7 +6,7 @@ use std::fs::File;
 use std::ops::Div;
 use std::time::Duration;
 use tokio::sync::broadcast::Sender;
-use tokio::sync::{broadcast, Mutex, oneshot};
+use tokio::sync::{broadcast, Mutex};
 
 #[derive(Serialize, Debug)]
 pub struct AudioFile{
@@ -63,7 +63,6 @@ impl AudioService{
                         sink.set_volume(volume / 50.0); // 设置sink上的音量, 需要的类型是f32
                     }
                     AudioEvent::Seek(seek) => {
-                        println!("seek: {}", seek);
                         sink.try_seek(Duration::from_secs_f64(seek)).unwrap();
                     }
                 }
@@ -80,6 +79,7 @@ impl AudioService{
 
 #[cfg(test)]
 mod test{
+    use rodio::Source;
     use tokio::test;
     // Debug模式运行会报错
     #[test]

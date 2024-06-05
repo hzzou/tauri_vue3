@@ -6,6 +6,7 @@
 * 在添加allowlist相关功能属性时，需要在Cargo.toml文件的tauri版本的features添加对应的功能
 * rodio是处理音频的Rust第三方库
 * 本项目使用的公共目录是Mac或者windows下的Documents，使用documentDir函数(来自@tauri-apps/api)获取，在Documents新建Music目录存放音乐
+* 监控visibilitychange事件，记录页面隐藏后台多少时间，使用Web Worker也不行，在它里面使用定时器时也会被优化
 
 ## 食用方式
 
