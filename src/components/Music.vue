@@ -214,9 +214,11 @@
         if(isPlaying.value){
             musicSeek.value += 1;
             let time = musicTime.value - musicSeek.value;
-            const min = Math.floor(time / 60);
-            const sec = Math.floor(time % 60);
-            displayTime.value = (min < 10 ? '0'+min : min)+":"+(sec < 10 ? '0'+sec : sec);
+            if(time >= 0){
+                const min = Math.floor(time / 60);
+                const sec = Math.floor(time % 60);
+                displayTime.value = (min < 10 ? '0'+min : min)+":"+(sec < 10 ? '0'+sec : sec);
+            }
         }
     };
 
@@ -259,10 +261,11 @@
             if(!docVisible.value){
                 // 隐藏时清除定时器
                 seekIntervalId.value && clearInterval(seekIntervalId.value);
-                timeSeek.value = parseInt(Date.now()/1000);
+                timeSeek.value = Math.round(Date.now()/1000);
             }
             else{
-                timeSeek.value = parseInt(Date.now()/1000) - timeSeek.value;
+                // 有的四舍，有的五入，刚好抵平
+                timeSeek.value = Math.round(Date.now()/1000) - timeSeek.value;
                 musicSeek.value = musicSeek.value + timeSeek.value;
                 seekIntervalId.value = setInterval(changeMusicProcess, 1000);
             }
